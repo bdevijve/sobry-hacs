@@ -20,11 +20,11 @@ _CACHE_MAX_DAYS = 2
 
 # How long to wait between retry attempts when tomorrow's prices are not yet
 # published (Sobry sometimes publishes them with a short delay after 13:00).
-_RETRY_DELAY_SECONDS = 30 * 60  # 30 minutes
+_RETRY_DELAY_SECONDS = 5 * 60  # 5 minutes
 
 # Maximum number of automatic retries after the 13:00 trigger.
-# 4 retries × 30 min = prices expected by 15:00 at the latest.
-_MAX_RETRIES = 4
+# 24 retries x 5 min = prices expected by 15:00 at the latest.
+_MAX_RETRIES = 24
 
 
 class SobryContractCoordinator(DataUpdateCoordinator[dict[int, dict]]):
@@ -42,10 +42,10 @@ class SobryContractCoordinator(DataUpdateCoordinator[dict[int, dict]]):
 
     - A daily trigger at 13:00 — pre-fetches tomorrow's prices, which Sobry
       publishes around that time.  If the response is empty (prices not yet
-      published), the coordinator schedules an automatic retry every 30 minutes
-      for up to _MAX_RETRIES attempts (~15:00 at the latest).  The midnight
-      rollover is handled naturally: at 00:00 the date changes, the next poll
-      finds a cache miss, and today's prices are fetched automatically.
+      published), the coordinator schedules an automatic retry every 5 minutes
+      for up to 24 attempts (~15:00 at the latest).  The midnight rollover is
+      handled naturally: at 00:00 the date changes, the next poll finds a cache
+      miss, and today's prices are fetched automatically.
 
     The cache is a flat dict { slot_start_timestamp -> slot_data }.
     Loaded days are tracked in _loaded_days so that an empty API response
