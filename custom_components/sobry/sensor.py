@@ -44,6 +44,7 @@ class _SobryBaseSensor(CoordinatorEntity[SobryContractCoordinator], SensorEntity
         )
 
     def _today_cache(self) -> dict[int, dict]:
+        """Return only today's slots from the coordinator cache (keyed by Unix timestamp)."""
         cache = self.coordinator.data
         if not cache:
             return {}
@@ -51,21 +52,31 @@ class _SobryBaseSensor(CoordinatorEntity[SobryContractCoordinator], SensorEntity
         day_start = int(now.replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
         return {ts: slot for ts, slot in cache.items() if day_start <= ts < day_start + 86400}
 
-    def _next_24h_slots(self) -> list[dict]:
+    def _all_known_slots(self) -> list[dict]:
+        """Return all cached slots from today 00:00 through end of tomorrow, sorted chronologically.
+
+        Covers today's full day plus tomorrow (pre-fetched at 14:00), giving
+        automations and dashboards a complete 48-h price horizon anchored at
+        midnight rather than sliding from the current time.
+        """
         cache = self.coordinator.data
         if not cache:
             return []
         now = dt_util.now()
-        current_ts = int(now.replace(minute=(now.minute // 15) * 15, second=0, microsecond=0).timestamp())
-        cutoff = current_ts + 86400
+        # Midnight of today in local time
+        today_start = int(now.replace(hour=0, minute=0, second=0, microsecond=0).timestamp())
+        # End of tomorrow = today_start + 48 h
+        cutoff = today_start + 172800
         return [
             {"timestamp": ts, "price": slot.get("price")}
             for ts, slot in sorted(cache.items())
-            if current_ts <= ts < cutoff
+            if today_start <= ts < cutoff
         ]
 
 
 class SobryCurrentPriceSensor(_SobryBaseSensor):
+    """Current electricity price for a Sobry contract, updated every 15 min."""
+
     _attr_native_unit_of_measurement = "EUR/kWh"
     _attr_suggested_display_precision = 4
     _attr_icon = "mdi:meter-electric"
@@ -89,11 +100,13 @@ class SobryCurrentPriceSensor(_SobryBaseSensor):
         return {
             "color": slot.get("color"),
             "color_label": slot.get("colorLabel"),
-            "prices": self._next_24h_slots(),
+            "prices": self._all_known_slots(),
         }
 
 
 class SobryMonthlyEnergySensor(_SobryBaseSensor):
+    """Monthly energy consumption for a Sobry contract."""
+
     _attr_native_unit_of_measurement = "kWh"
     _attr_device_class = SensorDeviceClass.ENERGY
     _attr_state_class = SensorStateClass.TOTAL_INCREASING
@@ -111,6 +124,8 @@ class SobryMonthlyEnergySensor(_SobryBaseSensor):
 
 
 class SobryMonthlyPriceSensor(_SobryBaseSensor):
+    """Monthly electricity cost for a Sobry contract."""
+
     _attr_native_unit_of_measurement = "EUR"
     _attr_device_class = SensorDeviceClass.MONETARY
     _attr_suggested_display_precision = 2
@@ -128,6 +143,8 @@ class SobryMonthlyPriceSensor(_SobryBaseSensor):
 
 
 class SobrySubscribedPowerSensor(_SobryBaseSensor):
+    """Contracted maximum power for a Sobry contract (diagnostic)."""
+
     _attr_native_unit_of_measurement = UnitOfApparentPower.VOLT_AMPERE
     _attr_device_class = SensorDeviceClass.APPARENT_POWER
     _attr_icon = "mdi:lightning-bolt"
@@ -148,6 +165,7 @@ class SobrySubscribedPowerSensor(_SobryBaseSensor):
 
 
 def _current_slot(cache: dict[int, dict]) -> dict | None:
+    """Return the slot whose 15-min window contains the current time, or None."""
     now = dt_util.now()
     ts = int(now.replace(minute=(now.minute // 15) * 15, second=0, microsecond=0).timestamp())
     return cache.get(ts)
