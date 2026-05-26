@@ -3,10 +3,10 @@
   "name": "Sobry",
   "version": "0.3.0",
   "config_flow": true,
-  "documentation": "https://github.com/pierre-pinon/sobry-hacs",
-  "issue_tracker": "https://github.com/pierre-pinon/sobry-hacs/issues",
+  "documentation": "https://github.com/bdevijve/sobry-hacs",
+  "issue_tracker": "https://github.com/bdevijve/sobry-hacs/issues",
   "dependencies": [],
-  "codeowners": ["@pierre-pinon"],
+  "codeowners": ["@bdevijve"],
   "requirements": [],
   "iot_class": "cloud_polling"
 }
